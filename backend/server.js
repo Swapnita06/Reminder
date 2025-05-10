@@ -28,14 +28,29 @@ mongoose.connect(process.env.MONGO_URI)
   .catch(err => console.error('MongoDB connection error:', err));
 
 // Socket.io initialization
+// const io = socketIo(server, {
+//   cors: {
+//     origin:  "http://localhost:5000",
+//     methods: ["GET", "POST"]
+//   }
+// });
+//initializeSocket(io);
+
+
 const io = socketIo(server, {
   cors: {
     origin: process.env.CLIENT_URL || "http://localhost:3000",
-    methods: ["GET", "POST"]
-  }
+    methods: ["GET", "POST"],
+    transports: ['websocket', 'polling'], // Add this line
+    credentials: true
+  },
+  allowEIO3: true // For Socket.IO v2 client compatibility
 });
 
-initializeSocket(io);
+// Add health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({ websocket: io.engine.clientsCount });
+});
 
 // Start server
 const PORT = process.env.PORT || 5000;
