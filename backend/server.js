@@ -14,8 +14,17 @@ const app = express();
 const server = http.createServer(app);
 
 // Middleware
-app.use(cors());
+//app.use(cors());
+app.use(cors({
+  origin: 'http://localhost:3000',
+  credentials: true
+}));
+
+//app.use(express.json());
+
 app.use(express.json());
+const cookieParser = require('cookie-parser');
+app.use(cookieParser());
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -34,7 +43,7 @@ mongoose.connect(process.env.MONGO_URI)
 //     methods: ["GET", "POST"]
 //   }
 // });
-//initializeSocket(io);
+
 
 
 const io = socketIo(server, {
@@ -47,6 +56,11 @@ const io = socketIo(server, {
   allowEIO3: true // For Socket.IO v2 client compatibility
 });
 
+initializeSocket(io);
+
+io.on("connection_error", (err) => {
+  console.log(`Socket.io connection error: ${err.message}`);
+});
 // Add health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({ websocket: io.engine.clientsCount });
@@ -61,8 +75,9 @@ server.listen(PORT, () => {
 // Background task to process messages for reminders
 setInterval(async () => {
   try {
-    await processMessagesForReminders();
+    await processMessagesForReminders(io);
   } catch (error) {
     console.error('Error processing reminders:', error);
+
   }
 }, 60000); // Check every minute

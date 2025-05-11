@@ -21,4 +21,8 @@ router.delete('/:id', reminderController.deleteReminder);
 // Mark reminder as completed
 router.patch('/:id/complete', reminderController.markAsCompleted);
 
+router.get('/active',reminderController.getActiveReminders);
+
+router.patch('/:id/snooze', reminderController.snoozeReminder);
+
 module.exports = router;

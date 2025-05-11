@@ -4,9 +4,17 @@ const User = require('../models/User');
 const Reminder = require('../models/Reminder');
 const { processMessageForReminders } = require('../utils/reminderAI');
 
+const onlineUsers = {}; // Moved outside so it persists across connections
+
 const initializeSocket = (io) => {
   io.on('connection', (socket) => {
     console.log('New client connected');
+
+    // Handle user online status
+    socket.on('setOnline', (userId) => {
+      onlineUsers[userId] = socket.id;
+      io.emit('userOnline', userId);
+    });
 
     // Join user to their personal room
     socket.on('join', async (userId) => {
@@ -25,7 +33,7 @@ const initializeSocket = (io) => {
       try {
         const { chatId, content, senderId } = messageData;
 
-        // Create new message
+        // Create and save new message
         const message = new Message({
           chat: chatId,
           sender: senderId,
@@ -34,29 +42,30 @@ const initializeSocket = (io) => {
 
         await message.save();
 
-        // Update chat last message
+        // Update last message for chat
         await Chat.findByIdAndUpdate(chatId, {
           lastMessage: message._id,
           lastMessageAt: new Date()
         });
 
-        // Populate sender info
+        // Populate sender
         const populatedMessage = await Message.populate(message, {
           path: 'sender',
           select: 'username'
         });
 
-        // Emit to all participants in the chat
+        // Emit to all participants
         io.to(chatId).emit('receiveMessage', populatedMessage);
 
-        // Process message for potential reminders
+        // Process reminder (AI logic)
         const chat = await Chat.findById(chatId).populate('participants');
         const otherParticipant = chat.participants.find(p => p._id.toString() !== senderId);
-        
+
         if (otherParticipant) {
           const reminder = await processMessageForReminders(content, senderId, otherParticipant._id, message._id);
           if (reminder) {
-            io.to(otherParticipant._id.toString()).emit('newReminder', reminder);
+            io.to(senderId).emit('newReminder', reminder.senderReminder);
+            io.to(otherParticipant._id.toString()).emit('newReminder', reminder.recipientReminder);
           }
         }
 
@@ -75,10 +84,10 @@ const initializeSocket = (io) => {
           { $addToSet: { readBy: userId } }
         );
 
-        // Notify other participants that messages were read
+        // Notify all chat rooms
         const messages = await Message.find({ _id: { $in: messageIds } }).populate('chat');
         const chatIds = [...new Set(messages.map(m => m.chat._id.toString()))];
-        
+
         chatIds.forEach(chatId => {
           io.to(chatId).emit('messagesRead', { messageIds, readerId: userId });
         });
@@ -87,8 +96,22 @@ const initializeSocket = (io) => {
       }
     });
 
-    // Handle disconnection
+    // Typing indicators
+    socket.on('typing', ({ chatId, userId }) => {
+      socket.to(chatId).emit('typing', { chatId, userId });
+    });
+
+    socket.on('stopTyping', ({ chatId, userId }) => {
+      socket.to(chatId).emit('stopTyping', { chatId, userId });
+    });
+
+    // Handle disconnect
     socket.on('disconnect', () => {
+      const userId = Object.keys(onlineUsers).find(key => onlineUsers[key] === socket.id);
+      if (userId) {
+        delete onlineUsers[userId];
+        io.emit('userOffline', userId);
+      }
       console.log('Client disconnected');
     });
   });

@@ -27,29 +27,55 @@ exports.getChatMessages = async (req, res) => {
   }
 };
 
-exports.createChat = async (req, res) => {
+// exports.createChat = async (req, res) => {
+//   try {
+//     const { participantId } = req.body;
+
+//     // Check if chat already exists
+//     const existingChat = await Chat.findOne({
+//       participants: { $all: [req.user._id, participantId] }
+//     });
+
+//     if (existingChat) {
+//       return res.status(200).json(existingChat);
+//     }
+
+//     // Create new chat
+//     const chat = new Chat({
+//       participants: [req.user._id, participantId]
+//     });
+
+//     await chat.save();
+
+//     res.status(201).json(chat);
+//   } catch (error) {
+//     res.status(500).json({ message: 'Something went wrong' });
+//   }
+// };
+
+// Add to chatController.js
+exports.getOrCreateChat = async (req, res) => {
   try {
     const { participantId } = req.body;
+    const userId = req.user._id;
 
-    // Check if chat already exists
-    const existingChat = await Chat.findOne({
-      participants: { $all: [req.user._id, participantId] }
-    });
+    // Check if chat exists
+    let chat = await Chat.findOne({
+      participants: { $all: [userId, participantId] }
+    }).populate('participants', 'username status');
 
-    if (existingChat) {
-      return res.status(200).json(existingChat);
+    // Create new chat if doesn't exist
+    if (!chat) {
+      chat = new Chat({
+        participants: [userId, participantId]
+      });
+      await chat.save();
+      chat = await Chat.populate(chat, { path: 'participants', select: 'username status' });
     }
 
-    // Create new chat
-    const chat = new Chat({
-      participants: [req.user._id, participantId]
-    });
-
-    await chat.save();
-
-    res.status(201).json(chat);
+    res.status(200).json(chat);
   } catch (error) {
-    res.status(500).json({ message: 'Something went wrong' });
+    res.status(500).json({ message: 'Failed to get or create chat' });
   }
 };
 

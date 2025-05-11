@@ -16,6 +16,15 @@ const messageSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+
+  reminderCreated: {
+    type: Boolean,
+    default: false
+  },
+  reminderProcessed:
+   { type: Boolean, 
+    default: false 
+  },
   readBy: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'

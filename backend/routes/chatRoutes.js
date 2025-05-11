@@ -13,9 +13,12 @@ router.get('/', chatController.getUserChats);
 router.get('/:chatId/messages', chatController.getChatMessages);
 
 // Create a new chat
-router.post('/', chatController.createChat);
+//router.post('/', chatController.createChat);
 
 // Add a message to a chat
 router.post('/:chatId/messages', chatController.addMessage);
+
+// Add to chatRoutes.js
+router.post('/get-or-create', authMiddleware.authenticate, chatController.getOrCreateChat);
 
 module.exports = router;

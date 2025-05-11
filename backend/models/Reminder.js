@@ -22,7 +22,20 @@ const reminderSchema = new mongoose.Schema({
   sourceMessage: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Message'
+  },
+  chat: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Chat'
+  },
+  senderInfo: {
+    _id: mongoose.Schema.Types.ObjectId,
+    username: String
+  },
+  recipientInfo: {
+    _id: mongoose.Schema.Types.ObjectId,
+    username: String
   }
+
 }, {
   timestamps: true
 });
